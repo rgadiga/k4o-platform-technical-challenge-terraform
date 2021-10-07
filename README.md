@@ -25,14 +25,14 @@ data mongodbatlas_cluster this {
 }
 
 #Connection_string added
- output connection_strings = {
-    for svc in var.service_configuration :
-    # your code magic here to construct the correct connection string based on the following convention 
-        value = join("",[
-            replace("${data.mongodbatlas_cluster.this.connection_strings[0].standard_srv}", "mongodb+srv://", "mongodb+srv://${mongodbatlas_database_user.store-service-user.username}:${random_password.store-service-password.result}@"),"/sample"])
-           
-  }
-}
+output connection_strings = { 
+  for_each = var.service_configuration
+    { Cluster = each.value.mongoCluster 
+      Database = each.value.mongoDatabase 
+      Collection = each.value.mongoCollection 
+      conn_string = "mongodb+srv://${mongodbatlas_database_user.store-service-user.username}:${random_password.store-service-password.result}@${Cluster}/${Database}/@{Collection}"
+     }
+ }    
 
 
 resource random_password store-service-password {
@@ -57,6 +57,25 @@ resource mongodbatlas_database_user store-service-user {
     }
   }
 }
+
+ variable service_configuration = 
+ { type = set(string)
+ default = [
+  {
+    serviceName     = "possums-data-store"
+    mongoCluster    = "animals-mongo"
+    mongoDatabase   = "marsupials-dev"
+    mongoCollection = ["possums"]
+  },
+  {
+    serviceName     = "numbats-data-store"
+    mongoCluster    = "animals-mongo"
+    mongoDatabase   = "marsupials-dev"
+    mongoCollection = ["numbats"]
+  }
+]
+}
+
 ```
 1) Output commond support -json - If specified, the outputs are formatted as a JSON object, with a key per output. If NAME is specified, only the output specified will be returned. This can be piped into tools such as jq for further processing. "https://www.terraform.io/docs/cli/commands/output.html" 
 2) Example - Return a Connection String "https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/resources/cluster"
